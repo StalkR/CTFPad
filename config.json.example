@@ -1,10 +1,13 @@
 {
+	"team": "My CTF team",
 	"port": 1234,
 	"etherpad_port": 1235,
 	"etherpad_internal_port": 9001,
+	"etherpad_url": "",
 	"keyfile": "key.pem",
 	"certfile": "cert.pem",
 	"authkey": "CHANGE_THIS",
 	"useHTTPS": false,
-	"proxyUseHTTPS": false
+	"proxyUseHTTPS": false,
+	"uploads": true
 }

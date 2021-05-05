@@ -36,9 +36,10 @@ app.use '/css/', express.static 'web/css/'
 app.use '/img/', express.static 'web/img/'
 app.use '/doc/', express.static 'web/doc/'
 
-options =
-  key: fs.readFileSync config.keyfile
-  cert: fs.readFileSync config.certfile
+if config.useHTTPS or config.proxyUseHTTPS
+  options =
+    key: fs.readFileSync config.keyfile
+    cert: fs.readFileSync config.certfile
 scoreboards = {2: ['test','test2']}
 
 if config.useHTTPS
@@ -57,9 +58,14 @@ validateSession = (session, cb=->) ->
 
 app.get '/', (req, res) ->
   validateSession req.cookies.ctfpad, (user) ->
-    unless user then res.sendfile 'web/login.html'
+    unless user
+      res.render 'login.html', {team: config.team, auth: !!config.authkey}
     else
+      user.team = config.team
       user.etherpad_port = config.etherpad_port
+      user.etherpad_url = config.etherpad_url
+      user.auth = !!config.authkey
+      user.uploads = config.uploads
       db.getCTFs (ctfs) ->
         user.all_ctfs = ctfs
         n = 0
@@ -94,6 +100,9 @@ app.get '/', (req, res) ->
         else res.render 'index.html', user
 
 app.post '/login', (req, res) ->
+  if not config.authkey
+    db.addUser req.body.name, req.body.password, (err) ->
+      return
   validateSession req.cookies.ctfpad, (ans) ->
     validateLogin req.body.name, req.body.password, (session) ->
       if session then res.cookie 'ctfpad', session
@@ -102,6 +111,9 @@ app.post '/login', (req, res) ->
 app.get '/login', (req, res) -> res.redirect 303, '/'
 
 app.post '/register', (req, res) ->
+  if not config.authkey
+    res.status(404).send('registration disabled because no authkey')
+    return
   if req.body.name and req.body.password1 and req.body.password2 and req.body.authkey
     if req.body.password1 == req.body.password2
       if req.body.authkey == config.authkey
@@ -117,6 +129,9 @@ app.get '/logout', (req, res) ->
   res.redirect 303, '/'
 
 app.post '/changepassword', (req, res) ->
+  if not config.authkey
+    res.status(404).send('change password disabled because no authkey')
+    return
   validateSession req.header('x-session-id'), (ans) ->
     if ans
       if req.body.newpw and req.body.newpw2
@@ -154,6 +169,9 @@ app.get '/scoreboard', (req, res) ->
     else res.send ''
 
 app.get '/files/:objtype/:objid', (req, res) ->
+  if not config.uploads
+    res.status(404).send('uploads disabled')
+    return
   validateSession req.cookies.ctfpad, (ans) ->
     if ans
       objtype = ["ctf", "challenge"].indexOf(req.params.objtype)
@@ -172,6 +190,9 @@ app.get '/files/:objtype/:objid', (req, res) ->
     else res.send 403
 
 app.get '/file/:fileid/:filename', (req, res) ->
+  if not config.uploads
+    res.status(404).send('uploads disabled')
+    return
   file = "#{__dirname}/uploads/#{req.params.fileid}"
   if /^[a-f0-9A-F]+$/.test(req.params.fileid) and fs.existsSync(file)
     db.mimetypeForFile req.params.fileid, (mimetype) ->
@@ -180,6 +201,9 @@ app.get '/file/:fileid/:filename', (req, res) ->
   else res.send 404
 
 app.get '/delete_file/:fileid', (req, res) ->
+  if not config.uploads
+    res.status(404).send('uploads disabled')
+    return
   validateSession req.cookies.ctfpad, (ans) ->
     if ans
       file = "#{__dirname}/uploads/#{req.params.fileid}"
@@ -216,6 +240,9 @@ upload = (user, objtype, objid, req, res) ->
   else res.send 400
 
 app.post '/upload/:objtype/:objid', (req, res) ->
+  if not config.uploads
+    res.status(404).send('uploads disabled')
+    return
   validateSession req.cookies.ctfpad, (user) ->
     if user
       upload user, req.params.objtype, req.params.objid, req, res
@@ -268,11 +295,12 @@ else
     if ans then proxy.ws req, socket, head else res.send 403###
 
 ## START ETHERPAD
-etherpad = process.spawn 'etherpad-lite/bin/run.sh'
-etherpad.stdout.on 'data', (line) ->
-  console.log "[etherpad] #{line.toString 'utf8', 0, line.length-1}"
-etherpad.stderr.on 'data', (line) ->
-  console.log "[etherpad] #{line.toString 'utf8', 0, line.length-1}"
+if not config.etherpad_url
+  etherpad = process.spawn 'etherpad-lite/bin/run.sh'
+  etherpad.stdout.on 'data', (line) ->
+    console.log "[etherpad] #{line.toString 'utf8', 0, line.length-1}"
+  etherpad.stderr.on 'data', (line) ->
+    console.log "[etherpad] #{line.toString 'utf8', 0, line.length-1}"
 
 wss = new WebSocketServer {server:server}
 wss.broadcast = (msg, exclude, scope=null) ->
@@ -331,8 +359,9 @@ wss.on 'connection', (sock) ->
       else console.log msg
 
 server.listen config.port
-proxyServer.listen config.etherpad_port
-console.log "listening on port #{config.port} and #{config.etherpad_port}"
+if not config.etherpad_url
+  proxyServer.listen config.etherpad_port
+  console.log "listening on port #{config.port} and #{config.etherpad_port}"
 
 filetype = (path,cb = ->) ->
   p = process.spawn 'file', ['-b', path]

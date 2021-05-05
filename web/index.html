@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>CTFPad :: StratumAuhuur</title>
+    <title>CTFPad</title>
     <link rel="icon" type="image/png" href="img/favicon.png">
     <link rel="stylesheet" href="css/bootstrap.css">
     <link rel="stylesheet" href="css/jquery.fileupload.css">
@@ -39,6 +39,7 @@
       }
     </style>
     <script type="text/javascript">
+      window.etherpad_url = "{{etherpad_url}}"
       window.etherpad_port = "{{etherpad_port}}"
       window.user = {name: "{{name}}"}
       {{#current}}window.current = {name: "{{current.name}}", id: {{current.id}}}{{/current}}
@@ -48,7 +49,7 @@
     <div class="navbar navbar-inverse">
       <div class="navbar-inner">
         <div class="container">
-          <a class="brand contentlink" href="#global">StratumAuhuur CTFPad</a>
+          <a class="brand contentlink" href="#global">{{team}} CTFPad</a>
           <ul class="nav pull-right">
             <li class="hide" id="uploadbutton">
               <div class="btn-group">
@@ -98,7 +99,9 @@
                   <span class="caret"></span>
                 </a>
                 <ul class="dropdown-menu pull-right">
+                  {{#auth}}
                   <li><a href="#passwordmodal" data-toggle="modal">Change Password</a></li>
+                  {{/auth}}
                   <li><a href="#apikeymodal" data-toggle="modal">API Key</a></li>
                   <li class="divider"></li>
                   <li><a href="/doc/API.html">API Documentation</a></li>
@@ -118,10 +121,12 @@
             <div class="well">
               <div class="highlightable">
                 <a href="#ctf{{id}}" class="contentlink"><strong>{{current.name}}</strong></a>
+                {{#uploads}}
                 <span class="pull-right">
                   <!-- <a href="#" data-toggle="popover" class="scoreboard-toggle"><i class="icon-th-list"></i></a>&nbsp; -->
                   <a href="#ctf{{id}}files" class="contentlink"><i class="icon-folder-{{#filecount}}open{{/filecount}}{{^filecount}}close{{/filecount}}"></i></a> <sup>{{filecount}}</sup>
                 </span>
+                {{/uploads}}
               </div>
               <div class="progress progress-striped">
                 <div class="bar" style="width:0%;" id="progress"></div>
@@ -157,8 +162,10 @@
                       </td>
                       <td class="padded"><a href="#challenge{{id}}" class="contentlink"><i class="icon-edit"></i></a></td>
                       <td class="padded" nowrap>
+                        {{#uploads}}
                         <a href="#challenge{{id}}files" class="contentlink"><i class="icon-folder-{{#filecount}}open{{/filecount}}{{^filecount}}close{{/filecount}}"></i></a>
                         <sup>{{filecount}}</sup></td>
+                        {{/uploads}}
                       <td nowrap>
                         <a data-toggle="popover" data-placement="right" data-trigger="manual" class="assignments" data-title="{{title}}"><i class="icon-user"></i></a>
                         <sup class="assignment-count" data-chalid="{{id}}">0</sup>
@@ -218,6 +225,7 @@
         <a href="#" class="btn btn-primary" onclick="window.newctf()">submit</a>
       </div>
     </div>
+    {{#auth}}
     <div id="passwordmodal" class="modal hide fade">
       <div class="modal-header">
         <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
@@ -245,6 +253,7 @@
         <a href="#" class="btn btn-primary" onclick="window.changepw()">submit</a>
       </div>
     </div>
+    {{/auth}}
     <div id="apikeymodal" class="modal hide fade">
       <div class="modal-header">
         <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
